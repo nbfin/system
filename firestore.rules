@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required, email format) - User email
+    //   - role: string (required, enum: ['admin', 'staff']) - User role
+    //   - displayName: string (optional)
+    //   - photoURL: string (optional)
+    //   - createdAt: number (required)
+    //
+    // Collection: quotations
+    // Document ID: {quotationId}
+    // Fields:
+    //   - channel: string (required, enum)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - partNumber: string (required)
+    //   - productName: string (required)
+    //   - moq: number (required, > 0)
+    //   - amount: number (required, > 0)
+    //   - cost: number (required, > 0)
+    //   - authorUid: string (required, immutable)
+    //   - createdAt: number (required, immutable)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "nbfd2024@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data, userId) {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid == userId &&
+             data.role in ['admin', 'staff'] &&
+             data.email is string &&
+             data.createdAt is number;
+    }
+
+    function isValidQuotation(data) {
+      return hasRequiredFields(['channel', 'date', 'partNumber', 'productName', 'moq', 'amount', 'authorUid', 'createdAt']) &&
+             data.channel in ['電商', '實體門市', '美容院', '百貨專櫃', '其他'] &&
+             data.moq is number && data.moq > 0 &&
+             data.amount is number && data.amount > 0 &&
+             data.cost is number && data.cost > 0 &&
+             data.authorUid == request.auth.uid &&
+             data.createdAt is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Users can read their own profile, admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Users can create their own profile as 'staff' (unless they are the default admin)
+      allow create: if isOwner(userId) && isValidUser(request.resource.data, userId) && 
+                    (request.resource.data.role == 'staff' || isAdmin());
+      
+      // Only admins can update roles
+      allow update: if isAdmin() && isValidUser(request.resource.data, userId);
+    }
+
+    match /quotations/{quotationId} {
+      // Authenticated users can read quotations
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create quotations
+      allow create: if isAuthenticated() && isValidQuotation(request.resource.data);
+      
+      // Owners or admins can update/delete
+      allow update: if (isAdmin() || resource.data.authorUid == request.auth.uid) && 
+                    isValidQuotation(request.resource.data) &&
+                    request.resource.data.authorUid == resource.data.authorUid &&
+                    request.resource.data.createdAt == resource.data.createdAt;
+                    
+      allow delete: if isAdmin() || resource.data.authorUid == request.auth.uid;
+    }
+  }
+}

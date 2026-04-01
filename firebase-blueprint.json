@@ -1,0 +1,46 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user role and profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "role": { "type": "string", "enum": ["admin", "staff"], "description": "User role for access control" },
+        "displayName": { "type": "string", "description": "User display name" },
+        "photoURL": { "type": "string", "description": "User photo URL" },
+        "createdAt": { "type": "number", "description": "Timestamp when user was first created" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Quotation": {
+      "title": "Quotation Record",
+      "description": "Stores quotation details for products.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID for the quotation" },
+        "channel": { "type": "string", "enum": ["電商", "實體門市", "美容院", "百貨專櫃", "其他"], "description": "Sales channel" },
+        "date": { "type": "string", "format": "date", "description": "Quotation date (YYYY-MM-DD)" },
+        "partNumber": { "type": "string", "description": "Product part number" },
+        "productName": { "type": "string", "description": "Product name" },
+        "moq": { "type": "number", "description": "Minimum order quantity" },
+        "amount": { "type": "number", "description": "Unit price including tax" },
+        "cost": { "type": "number", "description": "Product cost" },
+        "authorUid": { "type": "string", "description": "UID of the user who created the quotation" },
+        "createdAt": { "type": "number", "description": "Timestamp when quotation was created" }
+      },
+      "required": ["channel", "date", "partNumber", "productName", "moq", "amount", "authorUid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "/quotations/{quotationId}": {
+      "schema": "Quotation",
+      "description": "Collection of all quotations."
+    }
+  }
+}

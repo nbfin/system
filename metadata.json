@@ -1,0 +1,5 @@
+{
+  "name": "自然美報價系統",
+  "description": "內部報價管理工具，支援新增、編輯、刪除、查詢及匯出 CSV 功能。",
+  "requestFramePermissions": []
+}
